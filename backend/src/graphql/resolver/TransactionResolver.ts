@@ -3,10 +3,11 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
 import { Resolver, Query, Args, Authorized, Ctx, Mutation } from 'type-graphql'
-import { getCustomRepository, getConnection, QueryRunner } from 'typeorm'
+import { getCustomRepository, getConnection, QueryRunner, getRepository } from 'typeorm'
 
 import CONFIG from '../../config'
 import { sendEMail } from '../../util/sendEMail'
+import { KeyPairEd25519Create, PHRASE_WORD_COUNT } from '../../util/crypto'
 
 import { Transaction } from '../model/Transaction'
 import { TransactionList } from '../model/TransactionList'
@@ -35,7 +36,10 @@ import { TransactionType } from '../enum/TransactionType'
 import { hasUserAmount, isHexPublicKey } from '../../util/validate'
 import { LoginUserRepository } from '../../typeorm/repository/LoginUser'
 import { RIGHTS } from '../../auth/RIGHTS'
+import { LoginUserBackup } from '@entity/LoginUserBackup'
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const sodium = require('sodium-native')
 /*
 # Test
 
@@ -560,13 +564,93 @@ export class TransactionResolver {
 
     const centAmount = Math.trunc(amount * 10000)
 
+    // ********** unicorn add use blockchain connector ****************
+    const currentTime = new Date()
+    const resultPackTransaction = await apiPost(
+      CONFIG.BLOCKCHAIN_CONNECTOR_API_URL + 'packTransaction',
+      {
+        transactionType: 'transfer',
+        created: currentTime.toLocaleDateString(),
+        senderPubkey: senderUser.pubkey.toString('hex'),
+        recipientPubkey: recipiantPublicKey,
+        amount: centAmount,
+        memo: memo,
+      },
+    )
+    // throw error if something went wrong
+    if (!resultPackTransaction.success) {
+      throw new Error(resultPackTransaction.data)
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(resultPackTransaction.data.transactions)
+    /*
+    {
+      "bodyBytesBase64": "CAEStwEKZgpkCiDs2zemYO1PxD1Odwh5YxyUmDp+lyxgVmiQgiFdPLUahRJAvyYRVASJNvyYiTAT2D8t6QtVgekqnsPIJRAx6jG8tEqxdzwKGg/Jm0gatdY1Ix7DGbHMBRw/9CtoXQXueqqDChJNChBBR0UgT2t0b2JlciAyMDIxEgYIuMWpjQY6MQonCiAdkWfcgRcDfCIg+GbikK6U9Fp4WMTGtAxF7RRdvhisSxCA2sQJGgYIgJ/ZigYaBgjGxamNBiABKiCijBRel5hudg5iZqfeQxjzIMhnOJA+tmHmloMVW+snjTIEyWETAA==",
+	    "signaturePairs": [
+		  {
+  			"pubkey": "ecdb37a660ed4fc43d4e770879631c94983a7e972c6056689082215d3cb51a85",
+	  		"signature": "c1b2e8077c206bf78aeaefbdcdfe8a5ae32ddf9adca95ba1f5a93e885b7b3a00f224fe1fb0ea491d20966f7336fd90479c792432dc94b8c8b83dd00510fca508"
+		  }
+	  ],
+	  "groupAlias":"gdd1"
+    }
+    */
+    // result.data.transactions[0].bodyBytesBase64
+    // this can be only temporary, because the user backup will be encrypted for security reasons
+    // TODO: Use another approach
+    const loginUserBackupRepository = await getRepository(LoginUserBackup)
+    const loginUserBackup = await loginUserBackupRepository
+      .findOneOrFail({ userId: senderUser.id })
+      .catch(() => {
+        throw new Error('Could not find corresponding BackupUser')
+      })
+
+    const passphrase = loginUserBackup.passphrase.slice(0, -1).split(' ')
+    if (passphrase.length < PHRASE_WORD_COUNT) {
+      // TODO if this can happen we cannot recover from that
+      throw new Error('Could not load a correct passphrase')
+    }
+    const keyPair = KeyPairEd25519Create(passphrase) // return pub, priv Key
+    const sign = Buffer.alloc(sodium.crypto_sign_BYTES)
+    sodium.crypto_sign_detached(
+      sign,
+      Buffer.from(resultPackTransaction.data.transactions[0].bodyBytesBase64, 'hex'),
+      keyPair[1],
+    )
+
+    /*
+    const resultSendTransactionIota = await apiPost(
+      CONFIG.BLOCKCHAIN_CONNECTOR_API_URL + 'sendTransactionIota',
+      {
+        bodyBytesBase64: resultPackTransaction.data.transactions[0].bodyBytesBase64,
+        signaturePairs: [
+          {
+            pubkey: senderUser.pubkey.toString('hex'),
+            signature: sign.toString('hex'),
+          },
+        ],
+        groupAlias: CONFIG.COMMUNITY_ALIAS,
+      },
+    )
+    // throw error if something went wrong
+    if (!resultSendTransactionIota.success) {
+      throw new Error(resultSendTransactionIota.data)
+    }
+    */
+    // unicorn add end
+
     const queryRunner = getConnection().createQueryRunner()
     await queryRunner.connect()
     await queryRunner.startTransaction('READ UNCOMMITTED')
     try {
+      const transactionRepository = new TransactionRepository()
+
       // transaction
       let transaction = new dbTransaction()
       transaction.transactionTypeId = TransactionTypeId.SEND
+      transaction.transactionStateId = 1
+      transaction.nr = (await transactionRepository.findLastNr()) + 1
       transaction.memo = memo
 
       // TODO: NO! this is problematic in its construction

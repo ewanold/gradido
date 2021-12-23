@@ -25,4 +25,12 @@ export class TransactionRepository extends Repository<Transaction> {
       )
       .getMany()
   }
+
+  async findLastNr(): Promise<number> {
+    const transaction = await this.createQueryBuilder('transaction')
+      .orderBy('nr', 'DESC')
+      .limit(1)
+      .getOne()
+    return transaction ? transaction.nr : 0
+  }
 }

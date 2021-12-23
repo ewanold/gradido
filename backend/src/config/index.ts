@@ -33,6 +33,7 @@ const community = {
   COMMUNITY_NAME: process.env.COMMUNITY_NAME || 'Gradido Entwicklung',
   COMMUNITY_URL: process.env.COMMUNITY_URL || 'http://localhost/vue/',
   COMMUNITY_REGISTER_URL: process.env.COMMUNITY_REGISTER_URL || 'http://localhost/vue/register',
+  COMMUNITY_ALIAS: process.env.COMMUNITY_ALIAS || 'gradido_dev',
   COMMUNITY_DESCRIPTION:
     process.env.COMMUNITY_DESCRIPTION || 'Die lokale Entwicklungsumgebung von Gradido.',
 }
@@ -40,6 +41,11 @@ const community = {
 const loginServer = {
   LOGIN_APP_SECRET: process.env.LOGIN_APP_SECRET || '21ffbbc616fe',
   LOGIN_SERVER_KEY: process.env.LOGIN_SERVER_KEY || 'a51ef8ac7ef1abf162fb7a65261acd7a',
+}
+
+const blockchainConnector = {
+  BLOCKCHAIN_CONNECTOR_API_URL:
+    process.env.BLOCKCHAIN_CONNECTOR_API_URL || 'http://blockchain-connector:1271',
 }
 
 const resendTime = parseInt(process.env.RESEND_TIME ? process.env.RESEND_TIME : 'null')
@@ -70,6 +76,7 @@ const CONFIG = {
   ...community,
   ...email,
   ...loginServer,
+  ...blockchainConnector,
   ...webhook,
 }
 

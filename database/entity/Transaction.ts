@@ -1,1 +1,1 @@
-export { Transaction } from './0001-init_db/Transaction'
+export { Transaction } from './0007-community_transaction_add_nr/Transaction'
