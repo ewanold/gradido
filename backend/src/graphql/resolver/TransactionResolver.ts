@@ -38,6 +38,8 @@ import { LoginUserRepository } from '../../typeorm/repository/LoginUser'
 import { RIGHTS } from '../../auth/RIGHTS'
 import { LoginUserBackup } from '@entity/LoginUserBackup'
 
+import { Base64 } from 'js-base64'
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sodium = require('sodium-native')
 /*
@@ -534,12 +536,16 @@ export class TransactionResolver {
     // validate sender user (logged in)
     const userRepository = getCustomRepository(UserRepository)
     const senderUser = await userRepository.findByPubkeyHex(context.pubKey)
+
     if (senderUser.pubkey.length !== 32) {
       throw new Error('invalid sender public key')
     }
     if (!hasUserAmount(senderUser, amount)) {
       throw new Error("user hasn't enough GDD")
     }
+
+    const loginUserRepository = getCustomRepository(LoginUserRepository)
+    const loginUser = await loginUserRepository.findByEmail(senderUser.email)
 
     // validate recipient user
     // TODO: the detour over the public key is unnecessary
@@ -571,7 +577,7 @@ export class TransactionResolver {
       {
         transactionType: 'transfer',
         created: currentTime.toLocaleDateString(),
-        senderPubkey: senderUser.pubkey.toString('hex'),
+        senderPubkey: context.pubKey,
         recipientPubkey: recipiantPublicKey,
         amount: centAmount,
         memo: memo,
@@ -582,26 +588,11 @@ export class TransactionResolver {
       throw new Error(resultPackTransaction.data)
     }
 
-    // eslint-disable-next-line no-console
-    console.log(resultPackTransaction.data.transactions)
-    /*
-    {
-      "bodyBytesBase64": "CAEStwEKZgpkCiDs2zemYO1PxD1Odwh5YxyUmDp+lyxgVmiQgiFdPLUahRJAvyYRVASJNvyYiTAT2D8t6QtVgekqnsPIJRAx6jG8tEqxdzwKGg/Jm0gatdY1Ix7DGbHMBRw/9CtoXQXueqqDChJNChBBR0UgT2t0b2JlciAyMDIxEgYIuMWpjQY6MQonCiAdkWfcgRcDfCIg+GbikK6U9Fp4WMTGtAxF7RRdvhisSxCA2sQJGgYIgJ/ZigYaBgjGxamNBiABKiCijBRel5hudg5iZqfeQxjzIMhnOJA+tmHmloMVW+snjTIEyWETAA==",
-	    "signaturePairs": [
-		  {
-  			"pubkey": "ecdb37a660ed4fc43d4e770879631c94983a7e972c6056689082215d3cb51a85",
-	  		"signature": "c1b2e8077c206bf78aeaefbdcdfe8a5ae32ddf9adca95ba1f5a93e885b7b3a00f224fe1fb0ea491d20966f7336fd90479c792432dc94b8c8b83dd00510fca508"
-		  }
-	  ],
-	  "groupAlias":"gdd1"
-    }
-    */
-    // result.data.transactions[0].bodyBytesBase64
     // this can be only temporary, because the user backup will be encrypted for security reasons
     // TODO: Use another approach
     const loginUserBackupRepository = await getRepository(LoginUserBackup)
     const loginUserBackup = await loginUserBackupRepository
-      .findOneOrFail({ userId: senderUser.id })
+      .findOneOrFail({ userId: loginUser.id })
       .catch(() => {
         throw new Error('Could not find corresponding BackupUser')
       })
@@ -615,18 +606,18 @@ export class TransactionResolver {
     const sign = Buffer.alloc(sodium.crypto_sign_BYTES)
     sodium.crypto_sign_detached(
       sign,
-      Buffer.from(resultPackTransaction.data.transactions[0].bodyBytesBase64, 'hex'),
+      Base64.toUint8Array(resultPackTransaction.data.transactions[0].bodyBytesBase64),
       keyPair[1],
     )
 
-    /*
     const resultSendTransactionIota = await apiPost(
       CONFIG.BLOCKCHAIN_CONNECTOR_API_URL + 'sendTransactionIota',
       {
         bodyBytesBase64: resultPackTransaction.data.transactions[0].bodyBytesBase64,
         signaturePairs: [
           {
-            pubkey: senderUser.pubkey.toString('hex'),
+            // pubkey: senderUser.pubkey.toString('hex'),
+            pubkey: context.pubKey,
             signature: sign.toString('hex'),
           },
         ],
@@ -635,24 +626,28 @@ export class TransactionResolver {
     )
     // throw error if something went wrong
     if (!resultSendTransactionIota.success) {
+      // eslint-disable-next-line no-console
       throw new Error(resultSendTransactionIota.data)
     }
-    */
+
     // unicorn add end
 
     const queryRunner = getConnection().createQueryRunner()
     await queryRunner.connect()
     await queryRunner.startTransaction('READ UNCOMMITTED')
     try {
-      const transactionRepository = new TransactionRepository()
+      const transactionRepository = queryRunner.manager.getCustomRepository(TransactionRepository)
 
       // transaction
       let transaction = new dbTransaction()
+      const lastNr = Number(await transactionRepository.findLastNr())
+      console.log("lastNr: %o", lastNr)
       transaction.transactionTypeId = TransactionTypeId.SEND
       transaction.transactionStateId = 1
-      transaction.nr = (await transactionRepository.findLastNr()) + 1
+      transaction.nr = lastNr + 1
       transaction.memo = memo
 
+      console.log("transaction: %o", transaction)
       // TODO: NO! this is problematic in its construction
       const insertResult = await queryRunner.manager.insert(dbTransaction, transaction)
       transaction = await queryRunner.manager

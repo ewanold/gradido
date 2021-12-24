@@ -1,5 +1,5 @@
 import { BaseEntity, Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm'
-import { Transaction } from './Transaction'
+import { Transaction } from '../Transaction'
 
 @Entity('transaction_signatures')
 export class TransactionSignature extends BaseEntity {
