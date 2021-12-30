@@ -12,6 +12,7 @@
 #include "../../ServerConfig.h"
 
 #include <shared_mutex>
+#include <mutex>
 //using namespace Poco::Data::Keywords;
 
 #define SHARED_LOCK std::shared_lock<std::shared_mutex> _lock(mSharedMutex)
