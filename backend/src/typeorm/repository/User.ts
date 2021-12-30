@@ -18,6 +18,10 @@ export class UserRepository extends Repository<User> {
     return this.createQueryBuilder('user').where('user.email = :email', { email }).getOneOrFail()
   }
 
+  async findById(id: number): Promise<User> {
+    return this.createQueryBuilder('user').where('user.id = :id', { id }).getOneOrFail()
+  }
+
   async getUsersIndiced(userIds: number[]): Promise<User[]> {
     if (!userIds.length) return []
     const users = await this.createQueryBuilder('user')
