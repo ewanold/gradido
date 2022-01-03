@@ -116,7 +116,7 @@ class GradidoBlock extends TransactionBase {
         // received cannot be the same, the stored received from db came from mysql, 
         // the received from node server came from iota milestone
         // that from iota should be younger
-        if($this->getReceived()->diff($dbTransaction->received, true)->days()) {
+        if($this->getReceived()->diff($dbTransaction->received, true)->days) {
             $this->addError($functionName, 'received date from iota diff at least 1 day from db' . json_encode([
                 'stored' => $dbTransaction->received,
                 'received' => $this->getReceived()
