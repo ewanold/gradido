@@ -630,7 +630,7 @@ export class TransactionResolver {
       throw new Error(resultSendTransactionIota.data)
     }
 
-    // unicorn add end
+    // ********** unicorn add end **********
 
     const queryRunner = getConnection().createQueryRunner()
     await queryRunner.connect()
@@ -706,9 +706,9 @@ export class TransactionResolver {
         throw new Error('error saving transaction send coin: ' + error)
       })
 
-      await queryRunner.manager.save(transaction).catch((error) => {
-        throw new Error('error saving transaction with tx hash: ' + error)
-      })
+      //await queryRunner.manager.save(transaction).catch((error) => {
+        //throw new Error('error saving transaction with tx hash: ' + error)
+      //})
 
       await queryRunner.commitTransaction()
     } catch (e) {
