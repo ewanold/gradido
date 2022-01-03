@@ -41,6 +41,13 @@ class JsonRequestHandlerController extends AppController {
           }
           return $this->returnJson(['state' => 'error', 'msg' => 'unknown method for get', 'details' => $method]);
         }
+        else if($this->request->is('patch')) {
+          $method = $this->request->getQuery('method');
+          switch($method) {
+            case 'updateReadNode': return $this->updateReadNode();
+          }
+          return $this->returnJson(['state' => 'error', 'msg' => 'unknown method for patch', 'details' => $method]);
+        }
         else if($this->request->is('post')) {
           $jsonData = $this->request->input('json_decode');
           //var_dump($jsonData);
