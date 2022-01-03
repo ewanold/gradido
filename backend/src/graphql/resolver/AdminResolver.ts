@@ -157,7 +157,6 @@ export class AdminResolver {
     const receivedCallDate = new Date()
 
     // ********** unicorn add use blockchain connector ****************
-    const userRepository = getCustomRepository(UserRepository)
     const user = await userRepository.findById(pendingCreation.userId)
     const currentTime = new Date()
 
@@ -187,9 +186,6 @@ export class AdminResolver {
       .catch(() => {
         throw new Error('Could not find corresponding Server User (Moderator)')
       })
-    const moderatorUser = await loginUserRepository.findByEmail(serverUser.email).catch(() => {
-      throw new Error('Could not find corresponding Login User (Moderator)')
-    })
     const loginUserBackup = await loginUserBackupRepository
       .findOneOrFail({ userId: moderatorUser.id })
       .catch(() => {
