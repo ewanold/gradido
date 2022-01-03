@@ -7,6 +7,7 @@ import { RIGHTS } from '../../auth/RIGHTS'
 import { TransactionRepository } from '../../typeorm/repository/Transaction'
 import { TransactionCreationRepository } from '../../typeorm/repository/TransactionCreation'
 import { LoginPendingTasksAdminRepository } from '../../typeorm/repository/LoginPendingTasksAdmin'
+import { LoginUserRepository } from '../../typeorm/repository/LoginUser'
 import { UserRepository } from '../../typeorm/repository/User'
 import CreatePendingCreationArgs from '../arg/CreatePendingCreationArgs'
 import UpdatePendingCreationArgs from '../arg/UpdatePendingCreationArgs'
@@ -17,12 +18,12 @@ import { UserTransaction } from '@entity/UserTransaction'
 import { UserTransactionRepository } from '../../typeorm/repository/UserTransaction'
 import { BalanceRepository } from '../../typeorm/repository/Balance'
 import { calculateDecay } from '../../util/decay'
-import { LoginUserRepository } from '../../typeorm/repository/LoginUser'
 import CONFIG from '../../config'
 import { apiPost } from '../../apis/HttpRequest'
 import { LoginUserBackup } from '@entity/LoginUserBackup'
 import { KeyPairEd25519Create, PHRASE_WORD_COUNT } from '../../util/crypto'
 import { Base64 } from 'js-base64'
+import { ServerUser } from '@entity/ServerUser'
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sodium = require('sodium-native')
@@ -159,14 +160,93 @@ export class AdminResolver {
   async confirmPendingCreation(@Arg('id') id: number): Promise<boolean> {
     const loginPendingTasksAdminRepository = getCustomRepository(LoginPendingTasksAdminRepository)
     const pendingCreation = await loginPendingTasksAdminRepository.findOneOrFail(id)
-    
+
     const transactionRepository = getCustomRepository(TransactionRepository)
     const receivedCallDate = new Date()
+
+    // ********** unicorn add use blockchain connector ****************
+    const userRepository = getCustomRepository(UserRepository)
+    const user = await userRepository.findById(pendingCreation.userId)
+    const currentTime = new Date()
+
+    const resultPackTransaction = await apiPost(
+      CONFIG.BLOCKCHAIN_CONNECTOR_API_URL + 'packTransaction',
+      {
+        transactionType: 'creation',
+        created: currentTime.toISOString(),
+        memo: pendingCreation.memo,
+        recipientPubkey: user.pubkey.toString('hex'),
+        amount: parseInt(pendingCreation.amount.toString()),
+        targetDate: pendingCreation.date.toISOString(),
+      },
+    )
+    // throw error if something went wrong
+    if (!resultPackTransaction.success) {
+      throw new Error(resultPackTransaction.data)
+    }
+
+    // this can be only temporary, because the user backup will be encrypted for security reasons
+    // TODO: Use another approach
+    const loginUserBackupRepository = await getRepository(LoginUserBackup)
+    const serverUserRepository = await getRepository(ServerUser)
+    const loginUserRepository = await getCustomRepository(LoginUserRepository)
+    const serverUser = await serverUserRepository
+      .findOneOrFail({ id: pendingCreation.moderator })
+      .catch(() => {
+        throw new Error('Could not find corresponding Server User (Moderator)')
+      })
+    const moderatorUser = await loginUserRepository.findByEmail(serverUser.email).catch(() => {
+      throw new Error('Could not find corresponding Login User (Moderator)')
+    })
+    const loginUserBackup = await loginUserBackupRepository
+      .findOneOrFail({ userId: moderatorUser.id })
+      .catch(() => {
+        throw new Error('Could not find corresponding BackupUser')
+      })
+
+    const passphrase = loginUserBackup.passphrase.slice(0, -1).split(' ')
+    if (passphrase.length < PHRASE_WORD_COUNT) {
+      // TODO if this can happen we cannot recover from that
+      throw new Error('Could not load a correct passphrase')
+    }
+    const keyPair = KeyPairEd25519Create(passphrase) // return pub, priv Key
+    const sign = Buffer.alloc(sodium.crypto_sign_BYTES)
+    sodium.crypto_sign_detached(
+      sign,
+      Base64.toUint8Array(resultPackTransaction.data.transactions[0].bodyBytesBase64),
+      keyPair[1],
+    )
+
+    const resultSendTransactionIota = await apiPost(
+      CONFIG.BLOCKCHAIN_CONNECTOR_API_URL + 'sendTransactionIota',
+      {
+        bodyBytesBase64: resultPackTransaction.data.transactions[0].bodyBytesBase64,
+        signaturePairs: [
+          {
+            // pubkey: senderUser.pubkey.toString('hex'),
+            pubkey: keyPair[0].toString('hex'),
+            signature: sign.toString('hex'),
+          },
+        ],
+        groupAlias: CONFIG.COMMUNITY_ALIAS,
+      },
+    )
+    // throw error if something went wrong
+    if (!resultSendTransactionIota.success) {
+      // eslint-disable-next-line no-console
+      throw new Error(resultSendTransactionIota.data)
+    }
+
+    // ********** unicorn add end **********
+
+    const lastNr = Number(await transactionRepository.findLastNr())
     let transaction = new Transaction()
     transaction.transactionTypeId = 1
+    transaction.nr = lastNr + 1
     transaction.memo = pendingCreation.memo
     transaction.received = receivedCallDate
     transaction.blockchainTypeId = 1
+    transaction.transactionStateId = 1
     transaction = await transactionRepository.save(transaction)
     if (!transaction) throw new Error('Could not create transaction')
 
@@ -216,70 +296,7 @@ export class AdminResolver {
     userBalance.recordDate = receivedCallDate
     await balanceRepository.save(userBalance)
 
-    // ********** unicorn add use blockchain connector ****************
-    const userRepository = getCustomRepository(UserRepository)
-    const user = await userRepository.findById(pendingCreation.userId)
-    const currentTime = new Date()
-
-    const resultPackTransaction = await apiPost(
-      CONFIG.BLOCKCHAIN_CONNECTOR_API_URL + 'packTransaction',
-      {
-        transactionType: 'creation',
-        created: currentTime.toLocaleDateString(),
-        memo: pendingCreation.memo,
-        recipientPubkey: user.pubkey.toString('hex'),
-        amount: parseInt(pendingCreation.amount.toString()),
-        targetDate: pendingCreation.date.toLocaleDateString(),
-      },
-    )
-    // throw error if something went wrong
-    if (!resultPackTransaction.success) {
-      throw new Error(resultPackTransaction.data)
-    }
-
-    // this can be only temporary, because the user backup will be encrypted for security reasons
-    // TODO: Use another approach
-    const loginUserBackupRepository = await getRepository(LoginUserBackup)
-    const loginUserBackup = await loginUserBackupRepository
-      .findOneOrFail({ userId: pendingCreation.moderator })
-      .catch(() => {
-        throw new Error('Could not find corresponding BackupUser')
-      })
-
-    const passphrase = loginUserBackup.passphrase.slice(0, -1).split(' ')
-    if (passphrase.length < PHRASE_WORD_COUNT) {
-      // TODO if this can happen we cannot recover from that
-      throw new Error('Could not load a correct passphrase')
-    }
-    const keyPair = KeyPairEd25519Create(passphrase) // return pub, priv Key
-    const sign = Buffer.alloc(sodium.crypto_sign_BYTES)
-    sodium.crypto_sign_detached(
-      sign,
-      Base64.toUint8Array(resultPackTransaction.data.transactions[0].bodyBytesBase64),
-      keyPair[1],
-    )
-
-    const resultSendTransactionIota = await apiPost(
-      CONFIG.BLOCKCHAIN_CONNECTOR_API_URL + 'sendTransactionIota',
-      {
-        bodyBytesBase64: resultPackTransaction.data.transactions[0].bodyBytesBase64,
-        signaturePairs: [
-          {
-            // pubkey: senderUser.pubkey.toString('hex'),
-            pubkey: user.pubkey.toString('hex'),
-            signature: sign.toString('hex'),
-          },
-        ],
-        groupAlias: CONFIG.COMMUNITY_ALIAS,
-      },
-    )
-    // throw error if something went wrong
-    if (!resultSendTransactionIota.success) {
-      // eslint-disable-next-line no-console
-      throw new Error(resultSendTransactionIota.data)
-    }
-
-    // ********** unicorn add end **********
+    
 
     await loginPendingTasksAdminRepository.delete(pendingCreation)
 

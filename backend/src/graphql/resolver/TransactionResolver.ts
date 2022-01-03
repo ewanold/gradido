@@ -576,7 +576,7 @@ export class TransactionResolver {
       CONFIG.BLOCKCHAIN_CONNECTOR_API_URL + 'packTransaction',
       {
         transactionType: 'transfer',
-        created: currentTime.toLocaleDateString(),
+        created: currentTime.toISOString(),
         senderPubkey: context.pubKey,
         recipientPubkey: recipiantPublicKey,
         amount: centAmount,
