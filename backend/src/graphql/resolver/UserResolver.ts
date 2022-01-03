@@ -384,7 +384,7 @@ export class UserResolver {
     }
 
     const passphrase = PassphraseGenerate()
-    // const keyPair = KeyPairEd25519Create(passphrase) // return pub, priv Key
+    const keyPair = KeyPairEd25519Create(passphrase) // return pub, priv Key
     // const passwordHash = SecretKeyCryptographyCreateKey(email, password) // return short and long hash
     // const encryptedPrivkey = SecretKeyCryptographyEncrypt(keyPair[1], passwordHash[1])
     const emailHash = getEmailHash(email)
@@ -401,7 +401,7 @@ export class UserResolver {
     loginUser.language = language
     loginUser.groupId = 1
     loginUser.publisherId = publisherId
-    // loginUser.pubKey = keyPair[0]
+    loginUser.pubKey = keyPair[0]
     // loginUser.privKey = encryptedPrivkey
 
     const queryRunner = getConnection().createQueryRunner()
@@ -433,8 +433,10 @@ export class UserResolver {
       dbUser.lastName = lastName
       dbUser.username = username
       // TODO this field has no null allowed unlike the loginServer table
-      dbUser.pubkey = Buffer.from(randomBytes(32)) // Buffer.alloc(32, 0) default to 0000...
-      // dbUser.pubkey = keyPair[0]
+      // don't do that! if the user was registered and hasn't activated his account but get a transaction, on the blockchain
+      // his transaction is lost, better use Buffer.alloc(32, 0) and get an error by trying to send a transaction with that
+      // dbUser.pubkey = Buffer.from(randomBytes(32)) // Buffer.alloc(32, 0) default to 0000...
+      dbUser.pubkey = keyPair[0]
 
       await queryRunner.manager.save(dbUser).catch((er) => {
         // eslint-disable-next-line no-console
