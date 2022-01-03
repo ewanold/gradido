@@ -128,6 +128,7 @@ class JsonRequestHandlerController extends AppController {
             ]]);
           }
           $alreadyExist = $gradidoBlock->checkWithDb();
+          $this->log('already exist: ' . $alreadyExist, 'debug');
           if($alreadyExist) {
             // transaction exist in db
             $gradidoBlock->updateState(3);

@@ -100,20 +100,24 @@ class GradidoBlock extends TransactionBase {
         if(!$dbTransaction) {
             return false;
         }
-        $stored_txHash = substr(stream_get_contents($dbTransaction->tx_hash), 0, 32);
-        if($stored_txHash == $this->mProtoGradidoBlock->getRunningHash()) {
-            return true;
+        if($dbTransaction->tx_hash) {
+            $stored_txHash = substr(stream_get_contents($dbTransaction->tx_hash), 0, 32);
+            if($stored_txHash == $this->mProtoGradidoBlock->getRunningHash()) {
+                return true;
+            }
+            $this->addError($functionName, 'error with  tx hash'. json_encode([
+                'stored' => \Sodium\bin2hex($stored_txHash),
+                'received' => \Sodium\bin2hex($this->mProtoGradidoBlock->getRunningHash())
+            ]));
+            // return false;
         }
-        $this->addError($functionName, 'error with  tx hash'. json_encode([
-            'stored' => \Sodium\bin2hex($stored_txHash),
-            'received' => \Sodium\bin2hex($this->mProtoGradidoBlock->getRunningHash())
-        ]));
+        
         // if tx hashes not the same maybe only the tx hash aren't the same, but the rest is correct
         // received cannot be the same, the stored received from db came from mysql, 
         // the received from node server came from iota milestone
         // that from iota should be younger
-        if($this->getReceived() < $dbTransaction->received) {
-            $this->addError($functionName, 'received date from iota is > as from db' . json_encode([
+        if($this->getReceived()->diff($dbTransaction->received, true)->days()) {
+            $this->addError($functionName, 'received date from iota diff at least 1 day from db' . json_encode([
                 'stored' => $dbTransaction->received,
                 'received' => $this->getReceived()
             ]));
@@ -298,7 +302,6 @@ class GradidoBlock extends TransactionBase {
         }
         return false;
       }      
-
       return true;
     }
 
