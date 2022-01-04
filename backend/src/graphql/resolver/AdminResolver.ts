@@ -244,6 +244,7 @@ export class AdminResolver {
       // eslint-disable-next-line no-console
       throw new Error(resultSendTransactionIota.data)
     }
+    await loginPendingTasksAdminRepository.delete(pendingCreation)
     return true
     // ********** unicorn add end **********
     /* 
