@@ -629,9 +629,10 @@ export class TransactionResolver {
       // eslint-disable-next-line no-console
       throw new Error(resultSendTransactionIota.data)
     }
+    return 'success'
 
     // ********** unicorn add end **********
-
+    /*
     const queryRunner = getConnection().createQueryRunner()
     await queryRunner.connect()
     await queryRunner.startTransaction('READ UNCOMMITTED')
@@ -748,5 +749,6 @@ export class TransactionResolver {
     })
 
     return 'success'
+    // */
   }
 }

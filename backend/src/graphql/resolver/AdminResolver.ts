@@ -179,13 +179,6 @@ export class AdminResolver {
     // this can be only temporary, because the user backup will be encrypted for security reasons
     // TODO: Use another approach
     const loginUserBackupRepository = await getRepository(LoginUserBackup)
-    const serverUserRepository = await getRepository(ServerUser)
-    const loginUserRepository = await getCustomRepository(LoginUserRepository)
-    const serverUser = await serverUserRepository
-      .findOneOrFail({ id: pendingCreation.moderator })
-      .catch(() => {
-        throw new Error('Could not find corresponding Server User (Moderator)')
-      })
     const loginUserBackup = await loginUserBackupRepository
       .findOneOrFail({ userId: moderatorUser.id })
       .catch(() => {
@@ -224,9 +217,9 @@ export class AdminResolver {
       // eslint-disable-next-line no-console
       throw new Error(resultSendTransactionIota.data)
     }
-
+    return true
     // ********** unicorn add end **********
-
+    /* 
     const lastNr = Number(await transactionRepository.findLastNr())
     let transaction = new Transaction()
     transaction.transactionTypeId = 1
@@ -289,6 +282,7 @@ export class AdminResolver {
     await loginPendingTasksAdminRepository.delete(pendingCreation)
 
     return true
+    // */
   }
 }
 
