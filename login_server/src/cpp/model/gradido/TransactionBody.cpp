@@ -241,6 +241,9 @@ namespace model {
 			else if (blockainTypeString == "iota") {
 				return BLOCKCHAIN_IOTA;
 			}
+			else if (blockainTypeString == "mysql|iota") {
+				return BLOCKCHAIN_MYSQL_AND_IOTA;
+			}
 			return BLOCKCHAIN_UNKNOWN;
 		}
 
@@ -250,6 +253,7 @@ namespace model {
 			case BLOCKCHAIN_HEDERA: return "hedera";
 			case BLOCKCHAIN_MYSQL: return "mysql";
 			case BLOCKCHAIN_IOTA: return "iota";
+			case BLOCKCHAIN_MYSQL_AND_IOTA: return "mysql|iota";
 			case BLOCKCHAIN_UNKNOWN: return "unknown";
 			}
 			return "invalid";
