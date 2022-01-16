@@ -23,12 +23,12 @@ namespace model {
 
 		enum BlockchainType
 		{
-			BLOCKCHAIN_NULL,
-			BLOCKCHAIN_MYSQL,
-			BLOCKCHAIN_HEDERA,
-			BLOCKCHAIN_IOTA,
-			BLOCKCHAIN_UNKNOWN
-
+			BLOCKCHAIN_NULL = 0,
+			BLOCKCHAIN_MYSQL = 1,
+			BLOCKCHAIN_HEDERA = 2,
+			BLOCKCHAIN_IOTA = 4,
+			BLOCKCHAIN_MYSQL_AND_IOTA = 5,
+			BLOCKCHAIN_UNKNOWN = 8
 		};
 
 
@@ -87,9 +87,9 @@ namespace model {
 
 			static BlockchainType blockchainTypeFromString(const std::string& blockainTypeString);
 			inline void setBlockchainType(BlockchainType blockchainType) { mBlockchainType = blockchainType; }
-			inline bool isHederaBlockchain() { return mBlockchainType == BLOCKCHAIN_HEDERA; }
-			inline bool isMysqlBlockchain() { return mBlockchainType == BLOCKCHAIN_MYSQL; }
-			inline bool isIotaBlockchain() { return mBlockchainType == BLOCKCHAIN_IOTA; }
+			inline bool isHederaBlockchain() { return (mBlockchainType & BLOCKCHAIN_HEDERA) == BLOCKCHAIN_HEDERA; }
+			inline bool isMysqlBlockchain() { return (mBlockchainType & BLOCKCHAIN_MYSQL) == BLOCKCHAIN_MYSQL; }
+			inline bool isIotaBlockchain() { return (mBlockchainType & BLOCKCHAIN_IOTA) == BLOCKCHAIN_IOTA; }
 			const char* getBlockchainTypeString() const;
 
 		protected:

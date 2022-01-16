@@ -135,10 +135,10 @@ namespace model {
 			if (fieldNames.size() <= 1) {
 				throw Poco::NullValueException("User::_loadFromDB fieldNames empty or contain only one field");
 			}
-
-			select << "SELECT " << getTableName() << ".id, email, first_name, last_name, username, description, password, pubkey, privkey, email_hash, created, email_checked, language, disabled, group_id, publisher_id, user_roles.role_id "
+			std::string table_name_user_roles = "login_user_roles";
+			select << "SELECT " << getTableName() << ".id, email, first_name, last_name, username, description, password, pubkey, privkey, email_hash, created, email_checked, language, disabled, group_id, publisher_id, " << table_name_user_roles << ".role_id "
 				   << " FROM " << getTableName()
-				   << " LEFT JOIN user_roles ON " << getTableName() << ".id = user_roles.user_id "
+				   << " LEFT JOIN " << table_name_user_roles << " ON " << getTableName() << ".id = " << table_name_user_roles << ".user_id "
 	  			   << " where " << fieldNames[0] << " = ? ";
 			if (conditionType == MYSQL_CONDITION_AND) {
 				for (int i = 1; i < fieldNames.size(); i++) {

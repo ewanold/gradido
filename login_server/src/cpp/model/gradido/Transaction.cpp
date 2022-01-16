@@ -585,7 +585,7 @@ namespace model {
 
 				// send it to community server so it knows its transaction was processed,
 				// but depending on type it is not confirmed yet
-				if (!group.isNull()) {
+				if (!group.isNull() && mTransactionBody->isMysqlBlockchain()) {
 
 					// finale to base64
 					auto base_64_message = DataTypeConverter::binToBase64(raw_message, sodium_base64_VARIANT_URLSAFE_NO_PADDING);

@@ -45,7 +45,7 @@ Document JsonCreateTransaction::handle(const Document& params)
 
 	auto user = mSession->getNewUser();
 
-	if (mBlockchainType != model::gradido::BLOCKCHAIN_MYSQL) {
+	if ((mBlockchainType & model::gradido::BLOCKCHAIN_MYSQL) != model::gradido::BLOCKCHAIN_MYSQL) {
 		getTargetGroup(params);
 	}
 	else {
