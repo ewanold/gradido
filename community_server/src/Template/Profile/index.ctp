@@ -42,6 +42,10 @@ $this->assign('header', $header);
         <span class="fact"><?=$user['last_name']?></span>
       </li>
       <li class="fact">
+        <span class="fact label">Public Key:</span>
+        <span class="fact"><?= $user['public_hex']?></span>
+      </li>
+      <li class="fact">
         <span class="fact label"></span>
         <span class="fact">
           <a class="link-button action-link-button" href="/profile/edit">Meine Daten ändern</a>
