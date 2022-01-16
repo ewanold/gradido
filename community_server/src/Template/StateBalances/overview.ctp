@@ -54,6 +54,7 @@ $this->assign('header', $header);
       } else if($transaction['type'] == 'decay') {
         $cellColorClass = 'red-color';
       }
+      //var_dump($transaction);
     ?>
       <div class="row" <?= !$transactionConfirmed ? "style=\"color:grey\" title=\"Not yet confirmed\"" : ""?>>
         <div class="cell c4">
@@ -63,10 +64,10 @@ $this->assign('header', $header);
             <a href="mailto:<?= $transaction['email'] ?>" title="<?= $transaction['email'] ?>">
               <small class="tx-email"><?= $transaction['name'] ?></small>
             </a>
-            <?php elseif(isset($transaction['name']) && $transaction['name'] != '') : ?>
+            <?php elseif(isset($transaction['name']) && $transaction['name'] != ' ' && $transaction['name'] != '') : ?>
             <small class="tx-email"><?= $transaction['name'] ?></small>
             <?php elseif(isset($transaction['pubkey'])) : ?>
-            <small class="tx-email"><?= $transaction['pubkey'] ?></small>
+            <small class="tx-email" title="<?= $transaction['pubkey'] ?>"><?= substr($transaction['pubkey'], 0, 10) ?>...</small>
             <?php endif; ?>
             <!-- noch ungeklärt - icon ist nicht aligned -->
             <div class="cell-icon <?= $cellColorClass ?>">
@@ -113,6 +114,7 @@ $this->assign('header', $header);
 </div>
 <!--<a class="border-top px-3 py-2 d-block text-gray" href="#"><small class="font-weight-medium"><i class="mdi mdi-chevron-down mr-2"></i>View All Order History</small></a>-->
 <!--?= $this->Html->css(['gdt.css']) ?-->
+<?= $this->Html->script(['popper.min.js']) ?>
 <?php if($transactionExecutingCount > 0) : ?>
 <script type="text/javascript">
   //function getJson(basisUrl, method, successFunction, errorFunction, timeoutFunction)
