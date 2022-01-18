@@ -232,6 +232,7 @@ Document JsonRequestHandler::stateWarning(const char* msg, std::string details/*
 bool JsonRequestHandler::getTargetGroup(const Document& params)
 {
 	std::string group_alias;
+	auto sm = SessionManager::getInstance();
 	int group_id = 0;
 	Value::ConstMemberIterator itr = params.FindMember("group");
 	if (itr != params.MemberEnd()) {
@@ -255,6 +256,17 @@ bool JsonRequestHandler::getTargetGroup(const Document& params)
 			mTargetGroup = groups[0];
 			return true;
 		}
+		if (sm->isValid(group_alias, VALIDATE_ONLY_URL)) {
+			JsonRequest request(group_alias);
+			auto response = request.requestCommunityApi("/api/getGroupAlias");
+			std::string alias;
+			Poco::URI group_uri(group_alias);
+			getStringParameter(response, "alias", alias);
+			if (alias != "") {
+				mTargetGroup = controller::Group::create(alias, "", "", group_uri.getHost(), "/", "");
+				return true;
+			}
+		}		
 	}
 	else if (group_id) {
 		mTargetGroup = controller::Group::load(group_id);

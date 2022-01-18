@@ -248,10 +248,12 @@ Document JsonCreateTransaction::groupMemberUpdate(const Document& params)
 
 MemoryBin* JsonCreateTransaction::getTargetPubkey(const Document& params)
 {
-	std::string email, username, pubkeyHex;
+	std::string email, username, pubkeyHex, unknownFormat;
+	auto sm = SessionManager::getInstance();
 	getStringParameter(params, "target_email", email);
 	getStringParameter(params, "target_username", username);
 	getStringParameter(params, "target_pubkey", pubkeyHex);
+	getStringParameter(params, "target", unknownFormat);
 
 	mReceiverUser = controller::User::create();
 	int result_count = 0;
@@ -264,6 +266,18 @@ MemoryBin* JsonCreateTransaction::getTargetPubkey(const Document& params)
 		mSession->getNewUser()->getModel()->getGroupId();
 	}
 
+	if (unknownFormat != "") {
+		if (sm->isValid(unknownFormat, VALIDATE_EMAIL)) {
+			email = unknownFormat;
+		}
+		else if (sm->isValid(unknownFormat, VALIDATE_USERNAME)) {
+			username = unknownFormat;
+		}
+		else if (sm->isValid(unknownFormat, VALIDATE_ONLY_HEX)) {
+			pubkeyHex = unknownFormat;
+		}
+	}
+
 	MemoryBin* result = nullptr;
 	if (email.size()) {
 		result_count = mReceiverUser->getModel()->loadFromDB({ "email", "group_id" }, email, group_id, model::table::MYSQL_CONDITION_AND);
@@ -274,6 +288,7 @@ MemoryBin* JsonCreateTransaction::getTargetPubkey(const Document& params)
 	else if (pubkeyHex != "") {
 		result = DataTypeConverter::hexToBin(pubkeyHex);
 	}
+	
 	if (1 == result_count) {
 		result = mReceiverUser->getModel()->getPublicKeyCopy();
 	}
