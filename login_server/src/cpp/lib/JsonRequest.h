@@ -28,11 +28,13 @@ class JsonRequest : public NotificationList
 {
 public:
 	JsonRequest(const std::string& serverHost, int serverPort);
+	JsonRequest(const std::string& serverHost);
 	~JsonRequest();
 
 	JsonRequestReturn request(const char* methodName);
 	JsonRequestReturn request(const char* methodName, rapidjson::Value& payload);
 
+	rapidjson::Document requestCommunityApi(const char* path);
 	rapidjson::Document requestLogin(const char* path, rapidjson::Value& payload);
 
 	rapidjson::Document::AllocatorType& getJsonAllocator() { return mJsonDocument.GetAllocator(); }

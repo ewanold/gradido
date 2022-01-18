@@ -26,6 +26,17 @@ JsonRequest::JsonRequest(const std::string& serverHost, int serverPort)
 	}
 }
 
+JsonRequest::JsonRequest(const std::string& serverHost)
+	: mServerHost(serverHost), mServerPort(80), mJsonDocument(kObjectType)
+{
+	if (mServerHost.data()[mServerHost.size() - 1] == '/') {
+		mServerHost = mServerHost.substr(0, mServerHost.size() - 1);
+	}
+	Poco::URI uri(serverHost);
+	mServerPort = uri.getPort();
+	mServerHost = uri.getHost();
+}
+
 JsonRequest::~JsonRequest()
 {
 
@@ -215,6 +226,20 @@ Document JsonRequest::requestLogin(const char* path, Value& payload)
 	return responseJson;
 }
 
+Document JsonRequest::requestCommunityApi(const char* path)
+{
+	static const char* functionName = "JsonRequest::requestCommunityApi";
+
+	auto alloc = mJsonDocument.GetAllocator();
+	//printf("try to call GET on %s%s on port: %d\n", mServerHost.data(), path, mServerPort);
+	auto responseString = GET(path);
+	auto responseJson = parseResponse(responseString);
+	if (!responseJson.IsObject()) {
+		sendErrorsAsEmail(responseString);
+		return nullptr;
+	}
+	return responseJson;
+}
 
 Poco::SharedPtr<Poco::Net::HTTPClientSession> JsonRequest::createClientSession()
 {
