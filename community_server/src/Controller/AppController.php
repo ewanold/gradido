@@ -142,6 +142,7 @@ class AppController extends Controller
             $this->blockchainType = $blockchain['type'];
         }
         $this->groupAlias = Configure::read('GroupAlias');
+        $this->groupUrl = Configure::read('CommunityUrl');
     }
 
     protected function requestLogin($sessionId = 0, $redirect = true)

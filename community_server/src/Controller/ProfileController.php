@@ -154,6 +154,14 @@ class ProfileController extends AppController
             $this->log("CommunityProfile not found in session! Loading or creating new one.", 'debug');
             $session->write('CommunityProfile', $this->getCommunityProfile($user['id']));
         }
+        // CommunityUrl
+        $gradidoId = $this->groupUrl . '/';
+        if(isset($user['username']) && $user['username'] != '') {
+            $gradidoId .=  $user['username'];
+        } else {
+            $gradidoId .= $user['email'];
+        }
+        $this->set('gradidoId', $gradidoId);
         $this->set('user', $user);
         $this->set('communityProfile', $communityProfile);
         $this->set('timeUsed', microtime(true) - $startTime);
