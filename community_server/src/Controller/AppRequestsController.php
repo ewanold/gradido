@@ -28,7 +28,7 @@ class AppRequestsController extends AppController
         $this->Auth->allow([
             'index', 'sendCoins', 'createCoins', 'getBalance', 
             'listTransactions','listGDTTransactions', 'getDecayStartBlock',
-            'findUserPublicKey'
+            'findUserPublicKey', 'getGroupAlias'
         ]);
     }
     
@@ -466,6 +466,10 @@ class AppRequestsController extends AppController
     private function acquireAccessToken($session_id)
     {
       
+    }
+
+    public function getGroupAlias() {
+        return $this->returnJson(['alias' =>  $this->groupAlias]);
     }
     
 }

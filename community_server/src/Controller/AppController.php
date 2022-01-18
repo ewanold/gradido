@@ -141,6 +141,7 @@ class AppController extends Controller
         if($blockchain && isset($blockchain['type'])) {
             $this->blockchainType = $blockchain['type'];
         }
+        $this->groupAlias = Configure::read('GroupAlias');
     }
 
     protected function requestLogin($sessionId = 0, $redirect = true)

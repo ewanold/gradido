@@ -46,4 +46,10 @@ class TransactionValidation
     }
     return true;
   }
+  public static function gradidoId($value, array $context) {
+    if(preg_match('%(https?://)?[a-zA-Z0-9_\.-]*/[a-zA-Z0-9_@\.-]*%', $value)) {
+      return true;
+    }
+    return false;
+  }
 }

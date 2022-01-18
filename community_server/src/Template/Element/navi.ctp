@@ -32,6 +32,7 @@ if($balance < 0 ) {
 array_push($navi, $balanceNaviEntry);
 array_push($navi, new NaviEntry(__('Startseite'), 'home', 'Dashboard', 'index'));
 array_push($navi, new NaviEntry(__('Überweisung'), 'account_balance', 'TransactionSendCoins', 'create'));
+array_push($navi, new NaviEntry(__('Überweisung Gradido ID'), 'account_balance', 'TransactionSendCoins', 'createGradidoId'));
 array_push($navi, new NaviEntryExternLink(__('Mitgliederbereich'), 'people_alt', 'https://elopage.com/s/gradido/sign_in'));
 
 ?>
