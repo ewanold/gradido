@@ -35,7 +35,7 @@ class TransactionTransfer extends TransactionBase {
         }
         return true;
     }
-    public function isBelongRecipiantToCommunity() {
+    public function isBelongRecipientToCommunity() {
         if($this->protoTransactionTransfer->hasOutbound()) {
           return false;
         }
@@ -150,11 +150,16 @@ class TransactionTransfer extends TransactionBase {
           $this->addError($functionName, 'invalid receiver public key');
           return false;
         }
-        if($this->isBelongRecipiantToCommunity()) {
+        if($this->isBelongRecipientToCommunity()) {
             // check if receiver exist
             $receiver_user = $stateUsersTable->find('all')->select(['id'])->where(['public_key' => $receiver_public_key])->first();
             if(!$receiver_user) {
                 $this->addError($functionName, 'couldn\'t find receiver in db' );
+                $this->addError($functionName, json_encode([
+                  'belongToSender' => $this->isBelongSenderToCommunity(),
+                  'belongToRecipient' => $this->isBelongRecipientToCommunity(),
+                  'pubkey' => bin2hex($receiver_public_key)
+                ]));
                 return false;
             }
         }
@@ -208,6 +213,7 @@ class TransactionTransfer extends TransactionBase {
           $senderUserId = $this->getStateUserId($senderAmount->getPubkey());
           if(NULL === $senderUserId) {
               $this->addError($functionName, 'sender user not found');
+              $this->addError($functionName, 'sender: ' . bin2hex($senderAmount->getPubkey()));
               return false;
           }
           if(!$this->updateStateBalance($senderUserId, -$senderAmount->getAmount(), $received)) {
@@ -221,10 +227,11 @@ class TransactionTransfer extends TransactionBase {
         }
       }
 
-      if($this->isBelongRecipiantToCommunity()) {
+      if($this->isBelongRecipientToCommunity()) {
           $recipiantUserId = $this->getStateUserId($receiver);
           if(NULL === $recipiantUserId) {
             $this->addError($functionName, 'recipiant user not found');
+            $this->addError($functionName, 'recipiant: ' . bin2hex($receiver));
              return false;
           }
           if(!$this->updateStateBalance($recipiantUserId, $senderAmount->getAmount(), $received)) {
@@ -261,7 +268,7 @@ class TransactionTransfer extends TransactionBase {
     {
       // send notification email
        $disable_email = Configure::read('disableEmail', false);  
-       if($disable_email || !$this->isBelongRecipiantToCommunity()) return true;
+       if($disable_email || !$this->isBelongRecipientToCommunity()) return true;
         
       $local_transfer = $this->getTransfer();
       $sender = $local_transfer->getSender();

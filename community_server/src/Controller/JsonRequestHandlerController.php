@@ -38,6 +38,7 @@ class JsonRequestHandlerController extends AppController {
           $method = $this->request->getQuery('method');
           switch($method) {
             case 'getRunningUserTasks': return $this->getRunningUserTasks();
+            case 'updateReadNode': return $this->updateReadNode();
           }
           return $this->returnJson(['state' => 'error', 'msg' => 'unknown method for get', 'details' => $method]);
         }
