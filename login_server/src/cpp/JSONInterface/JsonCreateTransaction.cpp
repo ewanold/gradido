@@ -86,7 +86,9 @@ Document JsonCreateTransaction::transfer(const Document& params)
 
 	try {
 		Poco::AutoPtr<model::gradido::Transaction> transaction;
-		if (!mTargetGroup.isNull() && sender_user->getModel()->getGroupId() != mTargetGroup->getModel()->getID()) {
+		auto sender_user_group = controller::Group::load(sender_user->getModel()->getGroupId());
+		if (!mTargetGroup.isNull() && !sender_user_group.isNull() && 
+			mTargetGroup->getModel()->getAlias() != sender_user_group->getModel()->getAlias()) {
 			// cross group transfer transaction
 			transaction = model::gradido::Transaction::createTransferCrossGroup(sender_user, target_pubkey, mTargetGroup, amount, mMemo, mBlockchainType);
 		}

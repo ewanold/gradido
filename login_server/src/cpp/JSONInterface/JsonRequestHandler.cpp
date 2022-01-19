@@ -262,6 +262,7 @@ bool JsonRequestHandler::getTargetGroup(const Document& params)
 			std::string alias;
 			Poco::URI group_uri(group_alias);
 			getStringParameter(response, "alias", alias);
+			printf("[JsonRequestHandler::getTargetGroup] alias: %s\n", alias.data());
 			if (alias != "") {
 				mTargetGroup = controller::Group::create(alias, "", "", group_uri.getHost(), "/", "");
 				return true;
