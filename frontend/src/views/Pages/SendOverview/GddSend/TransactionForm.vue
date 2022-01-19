@@ -34,11 +34,8 @@
                   <b-form-input
                     id="input-1"
                     v-model="form.email"
-                    v-focus="emailFocused"
-                    @focus="emailFocused = true"
-                    @blur="normalizeEmail()"
-                    type="email"
-                    placeholder="E-Mail"
+                    type="text"
+                    placeholder="community.de/max.mustermann@gmail.com"
                     style="font-size: large"
                     class="pl-3"
                   ></b-form-input>

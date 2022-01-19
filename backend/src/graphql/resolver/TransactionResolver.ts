@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
 import { Resolver, Query, Args, Authorized, Ctx, Mutation } from 'type-graphql'
-import { getCustomRepository, getConnection, QueryRunner, getRepository } from 'typeorm'
+import { getCustomRepository, getConnection, QueryRunner, getRepository, Binary } from 'typeorm'
 
 import CONFIG from '../../config'
 import { sendEMail } from '../../util/sendEMail'
@@ -28,7 +28,7 @@ import { Transaction as dbTransaction } from '@entity/Transaction'
 import { TransactionSendCoin as dbTransactionSendCoin } from '@entity/TransactionSendCoin'
 import { Balance as dbBalance } from '@entity/Balance'
 
-import { apiPost } from '../../apis/HttpRequest'
+import { apiGet, apiPost } from '../../apis/HttpRequest'
 import { roundFloorFrom4, roundCeilFrom4 } from '../../util/round'
 import { calculateDecay, calculateDecayWithInterval } from '../../util/decay'
 import { TransactionTypeId } from '../enum/TransactionTypeId'
@@ -547,21 +547,60 @@ export class TransactionResolver {
     const loginUserRepository = getCustomRepository(LoginUserRepository)
     const loginUser = await loginUserRepository.findByEmail(senderUser.email)
 
-    // validate recipient user
-    // TODO: the detour over the public key is unnecessary
-    const recipiantPublicKey = await getPublicKey(email)
-    if (!recipiantPublicKey) {
-      throw new Error('recipiant not known')
+    // ********** unicorn add gradido id ****************
+    const matches = email.match(/^(https?:\/\/)?([\w.-]*)\/([\w.-@]*)$/)
+    let communityUrl = ''
+    let communityAlias = ''
+    let recipientPublicKeyHex = ''
+    if (matches) {
+      email = matches[3]
+      communityUrl = matches[2]
+
+      // get community alias
+      if (communityUrl !== '') {
+        const communityDetails = await apiGet('https://' + communityUrl + '/api/getGroupAlias')
+        if (communityDetails.success) {
+          communityAlias = communityDetails.data.alias
+        } else {
+          throw new Error("target community don't exist or wrong configured")
+        }
+      }
+      // get target pubkey
+      const emailHash = Buffer.alloc(sodium.crypto_generichash_BYTES)
+      sodium.crypto_generichash(emailHash, Buffer.from(email))
+      const loginResponse = await apiPost('https://' + communityUrl + '/login_api/search', {
+        ask: { account_publickey: emailHash.toString('hex') },
+      })
+      if (loginResponse.success) {
+        recipientPublicKeyHex = Buffer.from(
+          Base64.toUint8Array(loginResponse.data.results.account_publickey),
+        ).toString('hex')
+      } else {
+        throw new Error('recipient on target community unknown')
+      }
+    } else {
+      // validate recipient user
+      // TODO: the detour over the public key is unnecessary
+      const recipientPublicKey = await getPublicKey(email)
+      if (!recipientPublicKey) {
+        throw new Error('recipient not known')
+      } else {
+        recipientPublicKeyHex = recipientPublicKey
+      }
     }
-    if (!isHexPublicKey(recipiantPublicKey)) {
-      throw new Error('invalid recipiant public key')
+
+    if (!isHexPublicKey(recipientPublicKeyHex)) {
+      throw new Error('invalid recipient public key')
     }
-    const recipiantUser = await userRepository.findByPubkeyHex(recipiantPublicKey)
-    if (!recipiantUser) {
-      throw new Error('Cannot find recipiant user by local send coins transaction')
-    } else if (recipiantUser.disabled) {
-      throw new Error('recipiant user account is disabled')
+    if (communityUrl === '') {
+      const recipientUser = await userRepository.findByPubkeyHex(recipientPublicKeyHex)
+      if (!recipientUser) {
+        throw new Error('Cannot find recipient user by local send coins transaction')
+      } else if (recipientUser.disabled) {
+        throw new Error('recipient user account is disabled')
+      }
     }
+    // ********** unicorn add gradido id end ****************
 
     // validate amount
     if (amount <= 0) {
@@ -572,16 +611,23 @@ export class TransactionResolver {
 
     // ********** unicorn add use blockchain connector ****************
     const currentTime = new Date()
+    const packTransactionRequest = {
+      transactionType: 'transfer',
+      created: currentTime.toISOString(),
+      senderPubkey: context.pubKey,
+      recipientPubkey: recipientPublicKeyHex,
+      amount: centAmount,
+      memo: memo,
+      senderGroupAlias: '',
+      recipientGroupAlias: '',
+    }
+    if (communityAlias !== '') {
+      packTransactionRequest.senderGroupAlias = CONFIG.COMMUNITY_ALIAS
+      packTransactionRequest.recipientGroupAlias = communityAlias
+    }
     const resultPackTransaction = await apiPost(
       CONFIG.BLOCKCHAIN_CONNECTOR_API_URL + 'packTransaction',
-      {
-        transactionType: 'transfer',
-        created: currentTime.toISOString(),
-        senderPubkey: context.pubKey,
-        recipientPubkey: recipiantPublicKey,
-        amount: centAmount,
-        memo: memo,
-      },
+      packTransactionRequest,
     )
     // throw error if something went wrong
     if (!resultPackTransaction.success) {
@@ -628,6 +674,32 @@ export class TransactionResolver {
     if (!resultSendTransactionIota.success) {
       // eslint-disable-next-line no-console
       throw new Error(resultSendTransactionIota.data)
+    }
+    if (communityAlias !== '' && resultPackTransaction.data.transactions.length > 1) {
+      sodium.crypto_sign_detached(
+        sign,
+        Base64.toUint8Array(resultPackTransaction.data.transactions[1].bodyBytesBase64),
+        keyPair[1],
+      )
+      const resultSendTransactionIota = await apiPost(
+        CONFIG.BLOCKCHAIN_CONNECTOR_API_URL + 'sendTransactionIota',
+        {
+          bodyBytesBase64: resultPackTransaction.data.transactions[1].bodyBytesBase64,
+          signaturePairs: [
+            {
+              // pubkey: senderUser.pubkey.toString('hex'),
+              pubkey: context.pubKey,
+              signature: sign.toString('hex'),
+            },
+          ],
+          groupAlias: communityAlias,
+        },
+      )
+      // throw error if something went wrong
+      if (!resultSendTransactionIota.success) {
+        // eslint-disable-next-line no-console
+        throw new Error(resultSendTransactionIota.data)
+      }
     }
     return 'success'
 
