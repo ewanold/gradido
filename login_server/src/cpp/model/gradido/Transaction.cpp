@@ -566,16 +566,23 @@ namespace model {
 				}
 
 				if (mTransactionBody->isTransfer() && mTransactionBody->getTransferTransaction()->isCrossGroup()) {
-					auto groups = controller::Group::load(mTransactionBody->getTransferTransaction()->getOwnGroupAlias());
+					groupAlias = mTransactionBody->getTransferTransaction()->getOwnGroupAlias();
+					auto groups = controller::Group::load(groupAlias);
 					if (groups.size() == 1) {
 						group = groups[0];
-					}
+					} 
 				}
 				if (!groupAlias.size() && !group.isNull()) {
 					groupAlias = group->getModel()->getAlias();
 				}
 				if (groupAlias.size()) {
 					if (mTransactionBody->isIotaBlockchain()) {
+						if (mTransactionBody->isTransfer()) {
+							if (mTransactionBody->getTransferTransaction()->getTargetGroupAlias() == groupAlias) {
+								addError(new ParamError(function_name, "other group alias and chain are the same: ", groupAlias));
+								return -8;
+							}
+						}
 						Poco::AutoPtr<SendTransactionTask> task(new SendTransactionTask(this, groupAlias));
 						// add reference count
 						duplicate();
