@@ -469,7 +469,7 @@ class AppRequestsController extends AppController
     }
 
     public function getGroupAlias() {
-        return $this->returnJson(['alias' =>  $this->groupAlias]);
+        return $this->returnJson(['state' => 'success', 'alias' =>  $this->groupAlias]);
     }
     
 }
