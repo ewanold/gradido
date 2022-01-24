@@ -114,6 +114,7 @@ class TransactionBase {
           $this->addError('TransactionBase::updateStateBalance', 'error saving state balance with: ' . json_encode($errors));
           return false;
         }
+        
         return $finalBalance;
     }
     
@@ -161,6 +162,9 @@ class TransactionBase {
             $t->balance = 0;
         }
         $stateUserTransactionTable->saveMany($state_user_transactions);
+        // check for errors, just in case something went wrong
+        $stateBalancesTable = self::getTable('state_balances');
+        $stateBalancesTable->updateBalances($stateUserId);
         return true;
     }
 }

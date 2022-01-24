@@ -42,7 +42,10 @@ class StateBalancesController extends AppController
         $this->set(compact('stateBalances'));
     }
     
-    
+    public function updateAllBalances()
+    {
+        $this->StateBalances->updateAllBalances();
+    }
 
     public function overview()
     {
