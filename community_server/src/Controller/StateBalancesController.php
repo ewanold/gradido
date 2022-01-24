@@ -45,6 +45,7 @@ class StateBalancesController extends AppController
     public function updateAllBalances()
     {
         $this->StateBalances->updateAllBalances();
+	return $this->returnJson(['state' => 'success']);
     }
 
     public function overview()
